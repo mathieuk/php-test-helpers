@@ -288,9 +288,6 @@ static void php_test_helpers_init_globals(zend_test_helpers_globals *globals) /*
 	globals->new_handler.fci.object_ptr = NULL;
 	globals->exit_handler.fci.object_ptr = NULL;
 #endif
-
-	ALLOC_HASHTABLE(globals->modified_internal_functions);
-	zend_hash_init(globals->modified_internal_functions, 0, NULL, ZEND_FUNCTION_DTOR, 0);
 }
 /* }}} */
 
@@ -317,6 +314,18 @@ static PHP_MINIT_FUNCTION(test_helpers)
 }
 /* }}} */
 
+/* {{{ PHP_RINIT_FUNCTION
+ */
+static PHP_RINIT_FUNCTION(test_helpers)
+{
+	ALLOC_HASHTABLE(THG(modified_internal_functions));
+	zend_hash_init(THG(modified_internal_functions), 0, NULL, ZEND_FUNCTION_DTOR, 0);
+
+	return SUCCESS;
+}
+/* }}} */
+
+static int pth_restore_internal_functions();
 
 /* {{{ PHP_RSHUTDOWN_FUNCTION
  */
@@ -325,8 +334,10 @@ static PHP_RSHUTDOWN_FUNCTION(test_helpers)
 	test_helpers_free_handler(&THG(new_handler).fci TSRMLS_CC);
 	test_helpers_free_handler(&THG(exit_handler).fci TSRMLS_CC);
 
-	zend_hash_destroy(&THG(modified_internal_functions));
-	FREE_HASHTABLE(&THG(modified_internal_functions));
+	pth_restore_internal_functions();
+
+	zend_hash_destroy(THG(modified_internal_functions));
+	FREE_HASHTABLE(THG(modified_internal_functions));
 	
 	return SUCCESS;
 }
@@ -470,8 +481,7 @@ static int pth_rename_function(HashTable *table, char *orig, int orig_len, char 
 }
 /* }}} */
 
-
-static int pth_restore_internal_functions()
+static int pth_restore_internal_functions() /* {{{ */
 {
 	HashPosition pointer;
 	void **data;
@@ -516,6 +526,7 @@ static int pth_restore_internal_functions()
 	return SUCCESS;
 
 }
+/* }}} */
 
 /* {{{ proto void restore_internal_functions()
     Take all the internal functions that have been modified and restore them to their
@@ -595,6 +606,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO(arginfo_restore_internal_functions, 0)
 ZEND_END_ARG_INFO()
 /* }}} */
+/* }}} */
 
 /* {{{ test_helpers_functions[]
  */
@@ -617,7 +629,7 @@ zend_module_entry test_helpers_module_entry = {
 	test_helpers_functions,
 	PHP_MINIT(test_helpers),
 	NULL,
-	NULL,
+	PHP_RINIT(test_helpers),
 	PHP_RSHUTDOWN(test_helpers),
 	PHP_MINFO(test_helpers),
 	TEST_HELPERS_VERSION,
