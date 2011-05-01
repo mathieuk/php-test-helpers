@@ -1,5 +1,5 @@
 --TEST--
-rename_function() and user-defined functions
+overload_function() is capable of taking over user defined functions
 --SKIPIF--
 <?php 
 if (!extension_loaded('test_helpers')) die('skip test_helpers extension not loaded');
@@ -11,7 +11,11 @@ function foo()
     print 'foo';
 }
 
-rename_function('foo', 'bar');
-bar();
+function bar()
+{
+	print 'bar';
+}
+overload_function('foo', 'bar');
+foo();
 --EXPECT--
-foo
+bar
